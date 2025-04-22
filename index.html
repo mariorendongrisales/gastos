@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Gastos Personales</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <!-- Tus estilos custom -->
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body class="bg-gray-100 font-sans flex min-h-screen">
+
+    <aside class="w-64 bg-gray-800 text-white p-6 fixed h-full flex flex-col">
+        <h1 class="text-2xl font-semibold mb-6">Gastos</h1>
+        <nav class="flex-grow">
+            <label for="csvFileInput" class="w-full cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition duration-200 inline-block text-center mb-4">
+                Cargar CSV
+            </label>
+            <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+
+            <div id="loadingMessage" class="text-sm text-gray-400 mb-4 hidden">Cargando datos...</div>
+            <div id="errorMessage" class="text-sm text-red-400 mb-4 hidden"></div>
+            <div id="successMessage" class="text-sm text-green-400 mb-4 hidden"></div>
+
+            <h2 class="text-lg font-semibold mt-6 mb-3">Filtros</h2>
+            <div class="mb-4">
+                <label for="periodSelector" class="block text-sm font-medium text-gray-300 mb-1">Periodo:</label>
+                <select id="periodSelector" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:border-indigo-500">
+                    <option value="thisMonth">Este Mes</option>
+                    <option value="lastMonth">Mes Anterior</option>
+                    <option value="last3Months">Últimos 3 Meses</option>
+                    <option value="thisYear">Este Año</option>
+                    <option value="lastYear">Año Anterior</option>
+                    <option value="allTime">Todo</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-300 mb-1">Categorías:</label>
+                <div id="categoryFilterContainer" class="space-y-1 max-h-40 overflow-y-auto text-sm">
+                    <p class="text-gray-400">Carga un archivo para ver categorías.</p>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-300 mb-1">Métodos de Pago:</label>
+                <div id="paymentMethodFilterContainer" class="space-y-1 max-h-40 overflow-y-auto text-sm">
+                    <p class="text-gray-400">Carga un archivo para ver métodos.</p>
+                </div>
+            </div>
+
+             <button id="budgetButton" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                Definir Presupuestos
+            </button>
+        </nav>
+        <div class="text-xs text-gray-500 mt-auto">
+            Dashboard v1.3
+        </div>
+    </aside>
+
+    <main class="ml-64 flex-1 p-6 lg:p-8">
+        <div id="dashboardContent" class="opacity-50 pointer-events-none">
+            <section id="summarySection" class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 fade-in">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-gray-500">Gasto Total (Periodo)</h3>
+                    <p id="totalExpenses" class="text-3xl font-bold mt-1">€0.00</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-gray-500">Comparación Periodo Anterior</h3>
+                    <p id="periodComparison" class="text-xl font-semibold mt-1 flex items-center">
+                        <span class="mr-2">N/A</span>
+                    </p>
+                     <p id="previousPeriodValue" class="text-xs text-gray-400 mt-1">Periodo anterior: €0.00</p>
+                </div>
+                 <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="text-sm font-medium text-gray-500">Presupuesto General (Mes)</h3>
+                    <p id="overallBudgetValue" class="text-xl font-bold mt-1">€0.00</p>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                        <div id="overallBudgetProgress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                     <p id="overallBudgetStatus" class="text-xs text-gray-500 mt-1">0% gastado</p>
+                </div>
+            </section>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <section id="categoryDistributionSection" class="bg-white p-6 rounded-lg shadow fade-in" style="animation-delay: 0.1s;">
+                    <h2 class="text-xl font-semibold mb-4">Gastos por Categoría</h2>
+                    <div class="chart-container mb-4">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <div class="overflow-x-auto max-h-60">
+                        <table class="min-w-full text-sm text-left text-gray-700">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-2">Categoría</th>
+                                    <th scope="col" class="px-4 py-2">Monto</th>
+                                    <th scope="col" class="px-4 py-2">% del Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categoryTableBody">
+                                <tr><td colspan="3" class="text-center py-4 text-gray-500">No hay datos para mostrar.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="expenseTrendSection" class="bg-white p-6 rounded-lg shadow fade-in" style="animation-delay: 0.2s;">
+                    <h2 class="text-xl font-semibold mb-4">Evolución del Gasto</h2>
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </section>
+
+                <section id="paymentMethodSection" class="bg-white p-6 rounded-lg shadow fade-in" style="animation-delay: 0.3s;">
+                    <h2 class="text-xl font-semibold mb-4">Gasto por Método de Pago</h2>
+                    <div class="chart-container">
+                        <canvas id="paymentMethodChart"></canvas>
+                    </div>
+                </section>
+
+                <section id="topExpensesSection" class="bg-white p-6 rounded-lg shadow fade-in" style="animation-delay: 0.4s;">
+                    <h2 class="text-xl font-semibold mb-4">Mayores Gastos Individuales (Top 10)</h2>
+                    <ul id="topExpensesList" class="space-y-2 text-sm max-h-80 overflow-y-auto">
+                        <li class="text-center py-4 text-gray-500">No hay datos para mostrar.</li>
+                    </ul>
+                </section>
+
+                 <section id="budgetControlSection" class="bg-white p-6 rounded-lg shadow fade-in lg:col-span-2" style="animation-delay: 0.5s;">
+                    <h2 class="text-xl font-semibold mb-4">Control Presupuestario por Categoría (Mes Actual)</h2>
+                     <p id="budgetInfoText" class="text-sm text-gray-500 mb-4">Define presupuestos por categoría usando el botón en el menú lateral. Mostrando comparación con el gasto del mes actual.</p>
+                    <div class="overflow-x-auto max-h-80">
+                        <table class="min-w-full text-sm text-left text-gray-700">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-2">Categoría</th>
+                                    <th scope="col" class="px-4 py-2">Presupuesto</th>
+                                    <th scope="col" class="px-4 py-2">Gasto Real</th>
+                                    <th scope="col" class="px-4 py-2">Varianza (€)</th>
+                                    <th scope="col" class="px-4 py-2">Varianza (%)</th>
+                                    <th scope="col" class="px-4 py-2">Progreso</th>
+                                </tr>
+                            </thead>
+                            <tbody id="budgetTableBody">
+                                <tr><td colspan="6" class="text-center py-4 text-gray-500">Define presupuestos y carga datos para ver el control.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <section id="transactionDetailsSection" class="bg-white p-6 rounded-lg shadow fade-in" style="animation-delay: 0.6s;">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Detalle de Transacciones</h2>
+                    <input type="text" id="transactionFilterInput" placeholder="Filtrar tabla..." class="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                </div>
+                <div class="transaction-table-container max-h-[600px] overflow-auto">
+                    <table class="min-w-full text-sm text-left text-gray-700">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-10">
+                            <tr>
+                                <th scope="col" class="px-4 py-2 cursor-pointer hover:bg-gray-100" data-sort="invoice_date">Fecha ↕</th>
+                                <th scope="col" class="px-4 py-2 cursor-pointer hover:bg-gray-100" data-sort="supplier_name">Proveedor</th>
+                                <th scope="col" class="px-4 py-2 cursor-pointer hover:bg-gray-100" data-sort="products_purchased">Descripción</th>
+                                <th scope="col" class="px-4 py-2 cursor-pointer hover:bg-gray-100" data-sort="category">Categoría</th>
+                                <th scope="col" class="px-4 py-2 cursor-pointer hover:bg-gray-100" data-sort="payment_method">Método Pago</th>
+                                <th scope="col" class="px-4 py-2 cursor-pointer hover:bg-gray-100" data-sort="total_amount">Monto ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTableBody">
+                            <tr><td colspan="6" class="text-center py-10 text-gray-500">Carga un archivo CSV para ver las transacciones.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                 <div id="noTransactionsMessage" class="text-center py-10 text-gray-500 hidden">No hay transacciones que coincidan con los filtros actuales.</div>
+            </section>
+        </div>
+
+        <div id="initialMessage" class="text-center py-20 px-6">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Bienvenido al Dashboard de Gastos</h2>
+            <p class="text-gray-500 mb-6">Para comenzar, carga un archivo CSV con tus transacciones utilizando el botón en el menú lateral izquierdo.</p>
+             <p class="text-sm text-gray-400">Formato esperado: invoice_number, invoice_date, total_amount, tax, products_purchased, supplier_name, category, payment_method</p>
+        </div>
+    </main>
+
+    <div id="budgetModal" class="modal">
+        <div class="modal-content">
+            <span id="closeModalButton" class="close-button">&times;</span>
+            <h2 class="text-xl font-semibold mb-4">Definir Presupuestos Mensuales por Categoría</h2>
+            <p class="text-sm text-gray-600 mb-4">Introduce el monto presupuestado para cada categoría. Deja en blanco o 0 si no quieres asignar un presupuesto específico.</p>
+            <div id="budgetInputContainer" class="space-y-3 max-h-80 overflow-y-auto pr-2">
+                <p class="text-gray-500">Carga datos para ver las categorías.</p>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                 <button id="saveBudgetsButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                    Guardar Presupuestos
+                </button>
+                <button id="cancelBudgetsButton" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition duration-200">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tu script principal -->
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>
